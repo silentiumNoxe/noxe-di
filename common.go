@@ -11,20 +11,17 @@ type dependency struct {
 	instance any
 }
 
-func Define(name string, value any) error {
+func Define(name string, value any) {
 	for _, x := range container {
 		if x.name == name {
-			return fmt.Errorf("dependency with name %s already exist", name)
+			panic(fmt.Errorf("Dependency with name %s already exist ", name))
 		}
 	}
 
 	container = append(container, &dependency{name, value})
-
-	return nil
 }
 
-func Get[T any](qualifier ...string) (T, error) {
-	var defaultVal T
+func Get[T any](qualifier ...string) T {
 	var pretenders = make([]*dependency, 0)
 
 	for _, x := range container {
@@ -37,17 +34,17 @@ func Get[T any](qualifier ...string) (T, error) {
 		if len(qualifier) > 0 {
 			for _, x := range pretenders {
 				if x.name == qualifier[0] {
-					return x.instance.(T), nil
+					return x.instance.(T)
 				}
 			}
 		}
 
-		return defaultVal, fmt.Errorf("found %d pretenders for injection, %v", len(pretenders), pretenders)
+		panic(fmt.Errorf("found %d pretenders for injection, %v", len(pretenders), pretenders))
 	}
 
 	if len(pretenders) == 0 {
-		return defaultVal, fmt.Errorf("not found dependency (qualifier: %s)", qualifier[0])
+		panic(fmt.Errorf("not found dependency (qualifier: %s)", qualifier[0]))
 	}
 
-	return pretenders[0].instance.(T), nil
+	return pretenders[0].instance.(T)
 }
