@@ -2,9 +2,6 @@ package di
 
 import (
 	"fmt"
-	"reflect"
-	"runtime"
-	"strings"
 )
 
 var container = make([]*dependency, 0)
@@ -12,35 +9,16 @@ var container = make([]*dependency, 0)
 type dependency struct {
 	name     string
 	instance any
-	factory  func() any
-	zero     interface{}
 }
 
-func (d dependency) getInstance() any {
-	if d.instance == nil {
-		d.instance = d.factory()
-	}
-
-	return d.instance
-}
-
-func Define(factory func() any) error {
-	var name = runtime.FuncForPC(reflect.ValueOf(factory).Pointer()).Name()
-	sl := strings.Split(name, ".")
-	name = strings.Replace(sl[len(sl)-1], "New", "", 1)
-
+func Define(name string, value any) error {
 	for _, x := range container {
 		if x.name == name {
-			return fmt.Errorf("bean with name %s already defined", name)
+			return fmt.Errorf("dependency with name %s already exist", name)
 		}
 	}
 
-	tt := reflect.TypeOf(factory).Out(0)
-
-	container = append(
-		container,
-		&dependency{name: name, factory: factory, zero: reflect.Zero(tt).Interface()},
-	)
+	container = append(container, &dependency{name, value})
 
 	return nil
 }
@@ -50,7 +28,7 @@ func Get[T any](qualifier ...string) (T, error) {
 	var pretenders = make([]*dependency, 0)
 
 	for _, x := range container {
-		if _, ok := x.zero.(T); ok {
+		if _, ok := x.instance.(T); ok {
 			pretenders = append(pretenders, x)
 		}
 	}
@@ -59,7 +37,7 @@ func Get[T any](qualifier ...string) (T, error) {
 		if len(qualifier) > 0 {
 			for _, x := range pretenders {
 				if x.name == qualifier[0] {
-					return x.getInstance().(T), nil
+					return x.instance.(T), nil
 				}
 			}
 		}
@@ -68,8 +46,8 @@ func Get[T any](qualifier ...string) (T, error) {
 	}
 
 	if len(pretenders) == 0 {
-		return defaultVal, fmt.Errorf("not found bean")
+		return defaultVal, fmt.Errorf("not found dependency (qualifier: %s)", qualifier[0])
 	}
 
-	return pretenders[0].getInstance().(T), nil
+	return pretenders[0].instance.(T), nil
 }
